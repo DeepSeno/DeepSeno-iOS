@@ -1,0 +1,159 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (e.g. 1.7.0)'
+        required: true
+        type: string
+      prerelease:
+        description: '测试版 (pre-release)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-ios:
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          if command -v xcodegen >/dev/null 2>&1; then
+            xcodegen --version
+          else
+            brew install xcodegen
+          fi
+
+      - name: Prepare App Store Connect credentials
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          RELAY_SERVER_BASE_URL: ${{ secrets.RELAY_SERVER_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          if [ -z "${ASC_KEY_ID:-}" ]; then
+            echo "::error::APP_STORE_CONNECT_KEY_ID secret not set"
+            missing=1
+          fi
+          if [ -z "${ASC_ISSUER_ID:-}" ]; then
+            echo "::error::APP_STORE_CONNECT_ISSUER_ID secret not set"
+            missing=1
+          fi
+          if [ -z "${ASC_PRIVATE_KEY_BASE64:-}" ]; then
+            echo "::error::APP_STORE_CONNECT_PRIVATE_KEY_BASE64 secret not set"
+            missing=1
+          fi
+          if [ -z "${APPLE_TEAM_ID:-}" ]; then
+            echo "::error::APPLE_TEAM_ID secret not set"
+            missing=1
+          fi
+          if [ -z "${APP_BUNDLE_ID:-}" ]; then
+            echo "::error::APP_BUNDLE_ID secret not set"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          {
+            printf 'Key ID=%s\n' "$ASC_KEY_ID"
+            printf 'Issuer ID=%s\n' "$ASC_ISSUER_ID"
+            printf 'Team ID=%s\n' "$APPLE_TEAM_ID"
+            printf 'Bundle ID=%s\n' "$APP_BUNDLE_ID"
+            printf 'Relay Server Base URL=%s\n' "${RELAY_SERVER_BASE_URL:-}"
+            printf 'Private Key Base64=%s\n' "$ASC_PRIVATE_KEY_BASE64"
+          } > .env
+
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          p8="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_PRIVATE_KEY_BASE64" | base64 -D > "$p8"
+          chmod 600 "$p8"
+          grep -q 'BEGIN PRIVATE KEY' "$p8"
+
+      - name: Set version
+        id: version
+        run: |
+          set -euo pipefail
+
+          VER="${{ inputs.version }}"
+          BUILD="$(date -u +%Y%m%d%H%M%S)"
+
+          sed -i '' -E "s/MARKETING_VERSION: \"[^\"]+\"/MARKETING_VERSION: \"$VER\"/" project.yml
+          sed -i '' -E "s/CURRENT_PROJECT_VERSION: [0-9]+/CURRENT_PROJECT_VERSION: $BUILD/" project.yml
+
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "Version set to $VER (build $BUILD)"
+
+      - name: Archive, export, and upload
+        run: |
+          set -euo pipefail
+          ./scripts/release-testflight.sh --no-bump
+
+      - name: Upload IPA artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseno-ios-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}
+          path: build/ipa/*.ipa
+          if-no-files-found: ignore
+
+      - name: App Store Connect status
+        env:
+          ASC_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          ASC_RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          ASC_RELEASE_BUILD: ${{ steps.version.outputs.build }}
+        run: node scripts/asc-release.mjs status
+
+      - name: Wait for App Store build processing
+        if: ${{ !inputs.prerelease }}
+        env:
+          ASC_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          ASC_RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          ASC_RELEASE_BUILD: ${{ steps.version.outputs.build }}
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 30); do
+            echo "Checking App Store Connect build processing ($attempt/30)..."
+            status="$(node scripts/asc-release.mjs status)"
+            echo "$status"
+            if echo "$status" | grep -q 'processingState=VALID'; then
+              exit 0
+            fi
+            sleep 60
+          done
+
+          echo "::error::Build was not VALID after 30 minutes"
+          exit 1
+
+      - name: Submit for App Store review
+        if: ${{ !inputs.prerelease }}
+        env:
+          ASC_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          ASC_RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          ASC_RELEASE_BUILD: ${{ steps.version.outputs.build }}
+        run: node scripts/asc-release.mjs submit
