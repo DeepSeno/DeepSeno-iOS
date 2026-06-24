@@ -25,7 +25,11 @@ Pods/
 
 # Secrets — App Store Connect API key + env
 ios-files/
+*.p8
+*.mobileprovision
 .env
+.env.*
+!.env.example
 
 # Temp / local artifacts (App Store screenshots, scratch)
 .tmp/
