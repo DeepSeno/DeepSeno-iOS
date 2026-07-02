@@ -39,7 +39,7 @@ function projectSetting(key) {
   return m[1].trim();
 }
 
-const BUNDLE_ID = process.env.ASC_BUNDLE_ID || envValue('Bundle ID') || 'com.enmooy.deepseno';
+const BUNDLE_ID = process.env.ASC_BUNDLE_ID || envValue('Bundle ID') || 'com.korteqo.app.ios';
 const VERSION = process.env.ASC_RELEASE_VERSION || projectSetting('MARKETING_VERSION');
 const BUILD = process.env.ASC_RELEASE_BUILD || projectSetting('CURRENT_PROJECT_VERSION');
 const ASC = 'https://api.appstoreconnect.apple.com';
@@ -47,9 +47,9 @@ const ASC = 'https://api.appstoreconnect.apple.com';
 // "What's New" shown on the App Store, per locale.
 const WHATS_NEW = {
   'zh-Hans': process.env.ASC_WHATS_NEW_ZH_HANS ||
-    '设置页面全新改版，连接、配对、队列管理一目了然，操作更顺手。\n细节优化与稳定性提升。',
+    '本次更新将应用品牌更新为 DeepSeno（思维匣子），并同步新的隐私政策与技术支持页面。\n\n- 优化本地录音、照片、视频和文字捕捉体验\n- 保留局域网配对与本地 AI 处理流程\n- 改进连接稳定性和上传队列说明\n- 全部功能免费，无需登录、无订阅',
   'en-US': process.env.ASC_WHATS_NEW_EN_US ||
-    'Redesigned Settings — connection, pairing, and queue management are now clearer and easier to use.\nPolish and stability improvements throughout.',
+    'This update refreshes the app brand to DeepSeno and updates the privacy policy and support pages.\n\n- Improves local audio, photo, video, and text capture\n- Keeps LAN pairing and local AI processing flows\n- Improves connection stability and upload queue messaging\n- All features are free, with no login, subscription, or VIP tier',
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────
@@ -236,15 +236,20 @@ async function submitForReview(appId, versionId) {
     if (!reusable) throw e;
     subId = reusable.id;
   }
-  await api('POST', '/v1/reviewSubmissionItems', {
-    data: {
-      type: 'reviewSubmissionItems',
-      relationships: {
-        reviewSubmission: { data: { type: 'reviewSubmissions', id: subId } },
-        appStoreVersion: { data: { type: 'appStoreVersions', id: versionId } },
+  try {
+    await api('POST', '/v1/reviewSubmissionItems', {
+      data: {
+        type: 'reviewSubmissionItems',
+        relationships: {
+          reviewSubmission: { data: { type: 'reviewSubmissions', id: subId } },
+          appStoreVersion: { data: { type: 'appStoreVersions', id: versionId } },
+        },
       },
-    },
-  });
+    });
+  } catch (e) {
+    if (!String(e.message).includes('409')) throw e;
+    console.log('→ Review submission item already exists; reusing draft item');
+  }
   await api('PATCH', `/v1/reviewSubmissions/${subId}`, {
     data: { type: 'reviewSubmissions', id: subId, attributes: { submitted: true } },
   });

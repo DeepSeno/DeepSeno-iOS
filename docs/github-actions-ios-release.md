@@ -11,7 +11,7 @@
 | `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key 的 Key ID。workflow 会写入 `.env` 的 `Key ID=`，并传给 `xcodebuild` / `altool`。 | App Store Connect -> Users and Access -> Integrations -> App Store Connect API |
 | `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect API 的 Issuer ID。workflow 会写入 `.env` 的 `Issuer ID=`，用于签发 JWT 和 Apple API 认证。 | 同一个 API key 页面上的 Issuer ID |
 | `APPLE_TEAM_ID` | Apple Developer Team ID。workflow 会写入 `.env` 的 `Team ID=`，用于 Xcode 自动签名和导出 IPA。 | Apple Developer 账号的 Membership details |
-| `APP_BUNDLE_ID` | iOS Bundle ID。workflow 会写入 `.env` 的 `Bundle ID=`，并用于 Xcode 构建和 App Store Connect 查询。 | App Store Connect 中对应 App 的 Bundle ID |
+| `APP_BUNDLE_ID` | iOS Bundle ID。workflow 会写入 `.env` 的 `Bundle ID=`，并用于 Xcode 构建和 App Store Connect 查询。作为现有 App 更新提交时必须使用 `com.korteqo.app.ios`。 | App Store Connect 中对应 App 的 Bundle ID |
 | `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | `.p8` 私钥的 base64 内容。workflow 会写入 `.env` 的 `Private Key Base64=`，并解码成 `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`。 | 下载的 `AuthKey_<KEY_ID>.p8` 文件 |
 | `RELAY_SERVER_BASE_URL` | 可选。生产 relay 服务地址，例如 `https://relay.example.com/api/v1`。不配置则 App relay mode 为空，仍可使用局域网配对。 | 你的部署环境 |
 
@@ -52,7 +52,7 @@ cp .env.example .env
 Key ID=...
 Issuer ID=...
 Team ID=...
-Bundle ID=...
+Bundle ID=com.korteqo.app.ios
 Relay Server Base URL=
 Private Key Base64=...
 ```
@@ -64,5 +64,6 @@ Private Key Base64=...
 - workflow 不会提交版本号修改到仓库，只在本次 CI runner 里临时改 `project.yml`。
 - `CURRENT_PROJECT_VERSION` / `CFBundleVersion` 不需要手动填写，workflow 会用 UTC 时间自动生成，例如 `20260625081230`。
 - `prerelease=false` 会提交 App Store 审核，使用 `scripts/asc-release.mjs` 里的默认 App Store 更新说明；如需改文案，先改脚本中的 `WHATS_NEW`。
+- 这个 iOS 版本现在作为既有 App 的更新提交，Bundle ID 不能改；GitHub Secret `APP_BUNDLE_ID` 要填 `com.korteqo.app.ios`。
 - TestFlight 上传后 Apple 通常需要 10-30 分钟处理；workflow 最多等待 30 分钟。如果超时，说明 App Store Connect 还没把 build 标记为 `VALID`，稍后重新运行即可。
 - workflow 会上传导出的 `DeepSeno.ipa` 到 GitHub Actions artifact，方便下载留档。

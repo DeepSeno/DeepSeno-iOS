@@ -26,4 +26,4 @@ Sync with DeepSeno desktop v2 — new quick-start chat prompts, richer action it
 - Build: **1** (if ASC rejects due to duplicate, bump to 2 by editing `CURRENT_PROJECT_VERSION` in `project.yml` + `project.pbxproj` and re-archive)
 - Bundle ID: set via local `.env` or GitHub Actions secret `APP_BUNDLE_ID`
 - Team ID: set via local `.env` or GitHub Actions secret `APPLE_TEAM_ID`
-- Privacy Policy URL: `<your-privacy-policy-url>`
+- Privacy Policy URL: `https://deepseno.enmooy.com/privacy.html`

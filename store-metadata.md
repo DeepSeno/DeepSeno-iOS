@@ -131,14 +131,13 @@ voice,recorder,transcription,AI,second brain,meeting notes,memo,local,privacy,sp
 
 ### 6. Privacy Policy URL
 ```
-<your-privacy-policy-url>
+https://deepseno.enmooy.com/privacy.html
 ```
 
 ### 7. Support URL
 ```
-https://deepseno.com/support
+https://deepseno.enmooy.com/support.html
 ```
-(Placeholder)
 
 ### 8. Promotional Text (170 chars max)
 ```
@@ -146,18 +145,14 @@ Capture voice, photos & videos on your phone. Sync to your desktop for local AI 
 ```
 (169 chars)
 
-### 9. What's New (v1.0.0)
+### 9. What's New (v1.5.2)
 ```
-Initial release of DeepSeno mobile companion.
+本次更新将应用品牌更新为 DeepSeno（思维匣子），并同步新的隐私政策与技术支持页面。
 
-- Record audio, capture photos/videos, write text memos
-- Sync to desktop via local network (Wi-Fi)
-- AI chat assistant with streaming responses
-- Daily & weekly briefings with to-do tracking
-- Browse recordings with full-text search
-- QR code pairing and automatic device discovery
-- Upload queue with offline support and auto-retry
-- English and Chinese language support
+- 优化本地录音、照片、视频和文字捕捉体验
+- 保留局域网配对与本地 AI 处理流程
+- 改进连接稳定性和上传队列说明
+- 全部功能免费，无需登录、无订阅
 ```
 
 ---

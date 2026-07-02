@@ -104,13 +104,13 @@ Output: `build/DeepSeno.xcarchive`, `build/ipa/DeepSeno.ipa`
 ## Version Update
 In `project.yml`:
 ```yaml
-MARKETING_VERSION: "1.1.0"    # User-facing version
-CURRENT_PROJECT_VERSION: 2     # Build number
+MARKETING_VERSION: "1.5.2"    # User-facing version
+CURRENT_PROJECT_VERSION: 8     # Build number
 ```
 
 ## Signing
 - Team ID: set locally via `.env` or GitHub Actions secret `APPLE_TEAM_ID`
-- Bundle ID: set locally via `.env` or GitHub Actions secret `APP_BUNDLE_ID`
+- Bundle ID: set locally via `.env` or GitHub Actions secret `APP_BUNDLE_ID`; App Store updates use `com.korteqo.app.ios`
 - Identity: Apple Development (auto-managed)
 
 ## Adding New Files
