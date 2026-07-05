@@ -27,7 +27,6 @@ struct ConnectionInfo: Codable {
     let relay: RelayInfo?
 
     struct RelayInfo: Codable {
-        let key: String   // license key (not used for auth, but passed through)
         let mid: String   // desktop machineId for relay routing
         let pub: String   // desktop's ECDH P-256 public key (base64 SPKI DER)
         let nonce: String // pairing nonce (base64)

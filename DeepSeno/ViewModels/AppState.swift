@@ -88,7 +88,13 @@ class AppState: @unchecked Sendable {
     }
 
     func connectFromQR(jsonString: String) -> Bool {
-        guard let data = jsonString.data(using: .utf8),
+        let raw = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let info = ConnectionInfo.fromPairingURL(raw) {
+            Task { @MainActor in await connect(info: info) }
+            return true
+        }
+
+        guard let data = raw.data(using: .utf8),
               let info = try? JSONDecoder().decode(ConnectionInfo.self, from: data) else {
             return false
         }
@@ -309,5 +315,51 @@ class AppState: @unchecked Sendable {
                 connectLan(host: host, port: port, token: token)
             }
         }
+    }
+}
+
+private extension ConnectionInfo {
+    static func fromPairingURL(_ raw: String) -> ConnectionInfo? {
+        guard let components = URLComponents(string: raw),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "https" || scheme == "http" else {
+            return nil
+        }
+        let normalizedPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard normalizedPath == "mobile/pair" || normalizedPath.hasSuffix("/mobile/pair") else {
+            return nil
+        }
+
+        var params = [String: String]()
+        for item in components.queryItems ?? [] {
+            if let value = item.value {
+                params[item.name] = value
+            }
+        }
+
+        guard let token = params["token"], !token.isEmpty else {
+            return nil
+        }
+
+        let host = params["host"] ?? ""
+        let port = Int(params["port"] ?? "") ?? 0
+        let fingerprint = (params["fingerprint"]?.isEmpty == false) ? params["fingerprint"] : nil
+
+        let relayMid = params["mid"] ?? params["relay_mid"] ?? params["relayMid"]
+        let relayPub = params["pub"] ?? params["relay_pub"] ?? params["relayPub"]
+        let relayNonce = params["nonce"] ?? params["relay_nonce"] ?? params["relayNonce"]
+        let relay: RelayInfo?
+        if let relayMid, let relayPub, let relayNonce,
+           !relayMid.isEmpty, !relayPub.isEmpty, !relayNonce.isEmpty {
+            relay = RelayInfo(mid: relayMid, pub: relayPub, nonce: relayNonce)
+        } else {
+            relay = nil
+        }
+
+        guard (!host.isEmpty && port > 0) || relay != nil else {
+            return nil
+        }
+
+        return ConnectionInfo(host: host, port: port, token: token, fingerprint: fingerprint, relay: relay)
     }
 }
