@@ -108,18 +108,48 @@ jobs:
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
           echo "Version set to $VER (build $BUILD)"
 
-      - name: Archive, export, and upload
+      - name: Archive and export IPA
         run: |
           set -euo pipefail
-          ./scripts/release-testflight.sh --no-bump
+          ./scripts/release-testflight.sh --no-bump --no-upload
+
+      - name: Prepare release IPA
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp build/ipa/DeepSeno.ipa "artifacts/deepseno-v${{ steps.version.outputs.version }}-ios.ipa"
+          ls -lh artifacts/
 
       - name: Upload IPA artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: deepseno-ios-${{ steps.version.outputs.version }}-${{ steps.version.outputs.build }}
-          path: build/ipa/*.ipa
+          path: |
+            build/ipa/*.ipa
+            artifacts/*.ipa
           if-no-files-found: ignore
+
+      - name: Push to COS and release server
+        env:
+          API_BASE: ${{ secrets.API_BASE_URL }}
+          ADMIN_EMAIL: ${{ secrets.RELEASE_ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.RELEASE_ADMIN_PASSWORD }}
+          COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
+          COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
+          COS_BUCKET_URL: ${{ secrets.COS_BUCKET_URL }}
+          COS_REGION: ${{ secrets.COS_REGION || 'ap-beijing' }}
+          COS_CDN_DOMAIN: ${{ secrets.COS_CDN_DOMAIN }}
+        run: scripts/upload-release-to-cos.sh "artifacts/deepseno-v${{ steps.version.outputs.version }}-ios.ipa"
+
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-app -f build/ipa/DeepSeno.ipa -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
       - name: App Store Connect status
         env:
