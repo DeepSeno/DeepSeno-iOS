@@ -24,9 +24,12 @@ TOKEN=$(curl -sf "$API_BASE/auth/login" \
 [ -z "$TOKEN" ] && echo "Login failed" && exit 1
 
 echo "[Release] Installing coscmd..."
-python3 -m pip install --user --disable-pip-version-check -q coscmd
-USER_BASE=$(python3 -m site --user-base)
-export PATH="$USER_BASE/bin:$HOME/.local/bin:$PATH"
+COSCMD_VENV="${RUNNER_TEMP:-/tmp}/deepseno-coscmd-venv"
+python3 -m venv "$COSCMD_VENV"
+# shellcheck disable=SC1091
+. "$COSCMD_VENV/bin/activate"
+python3 -m pip install --disable-pip-version-check -q --upgrade pip
+python3 -m pip install --disable-pip-version-check -q coscmd
 
 COS_BUCKET=$(python3 - <<'PY'
 import os
