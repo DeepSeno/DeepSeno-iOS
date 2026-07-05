@@ -6,8 +6,6 @@ if [ "$#" -eq 0 ]; then
   exit 0
 fi
 
-[ -z "${ADMIN_EMAIL:-}" ] && echo "[Release] ADMIN_EMAIL not set, skipping" && exit 0
-
 for name in API_BASE ADMIN_EMAIL ADMIN_PASSWORD COS_SECRET_ID COS_SECRET_KEY COS_BUCKET_URL COS_REGION COS_CDN_DOMAIN; do
   if [ -z "${!name:-}" ]; then
     echo "[Release] $name not set"
